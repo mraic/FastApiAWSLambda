@@ -1,0 +1,62 @@
+name: FastAPI CI/CD
+
+on:
+  #trigger workflow on push
+  push:
+    branches:
+      #push events on main branch
+      - main
+
+# the job defines a series of steps that execute on the same runner
+jobs:
+
+  CI:
+  # define the runner used in the workflow
+    runs-on: ubuntu-latest
+    steps:
+    #check out repo so our wokflow can acces it
+      - uses: actions/checkout@v2
+
+      # step 1 - Set up Python
+      - name: Set up Python
+        #this action sets up a Python env for use in action
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      # step 2 install python virtual env
+      - name: Install Python Virtual ENV
+        run: pip3 install virtualenv
+
+      # step 3 setup virtual env
+      - name: Virtual ENV
+        uses: action/cache@v2
+        id: cache-venv
+        with:
+          path: venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/requirements*.txt') }}
+          restore-kesy: /
+            ${{ runner.os }}-venv-
+
+      # step 4 Build a Virtual ENV, but only if it doesnt already exist
+      -name: Activate Virtual ENV
+       run: python -m venv venv && source venv/bin/activate && pip3 install -r requirements.txt
+       if: steps.cache-venv.outputs.cache-hit != 'true'
+
+      -name: Run Tests
+        # Note that you have to activate the virtualenv in every step
+        # because GitHub actions does NOT preserve the enviroment
+        run: . venv/bin/activate && pytest
+      - name: Create archieve of dependencies
+        run: /
+          cd ./venv/lib/python3.9/site-packages
+          zip -r9 ../../../../api.zip .
+      - name: Add API files to Zip file
+        run: cd ./api && zip -g ../api.zip -r .
+      - name: Upload zip file artifact
+        # uploads artifacts from your workflow allowing you to share between jobs
+        # stores data once a workflow is complete
+        uses: actions/upload-artifact@v2
+        with: 
+          name: api
+          path: api.zip
